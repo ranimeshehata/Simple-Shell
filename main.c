@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <signal.h>
 
+//for text colors
 #define MAGENTA "\x1b[35m"
 #define YEL "\e[0;33m"
 #define reset "\x1b[0m"
@@ -34,18 +35,23 @@ void remove_quotes(char *);
 
 int main()
 {
+    // Register a signal handler for child process termination
     signal(SIGCHLD, on_signal_exit);
+    // Initialize the shell environment and start the main loop
     setup_environment();
     shell();
     return 0;
 }
 
+// Sets up the shell environment by prompting the user for input and parsing it
 void setup_environment()
 {
     // Prompt the user for input
     char directory[1000];
-    getcwd(directory, sizeof(directory)); // get the name of the working directory
+    // get the name of the working directory
+    getcwd(directory, sizeof(directory));
     chdir(directory);
+    //display the prompt
     printf(MAGENTA "SIMPLE-SHELL:" reset YEL "%s >>" reset, directory); // print working directory
     // Read the user's input
     if (!fgets(command, MAX_COMMAND_LENGTH, stdin))
@@ -77,7 +83,7 @@ void parse_input()
     }
     else
     {
-        // if the command is anything but export
+        // if the command is anything but export command, tokenize the command into arguments
         token = strtok(command, " ");
         i = 0;
         while (token != NULL)
@@ -91,10 +97,12 @@ void parse_input()
         if (arr[1] != NULL && !strcmp(arr[1], "&"))
             flag = 1;
 
+        // Substitute environment variables starting with '$'
         for (int j = 0; arr[j] != NULL; j++)
         {
             if (arr[j][0] == '$')
             {
+                // Extract variable name from the argument
                 char temp[50];
                 int l = 0;
                 for (k = 1; arr[1][k] != '\0'; k++)
@@ -102,6 +110,7 @@ void parse_input()
                     temp[l++] = arr[1][k];
                 }
                 temp[l] = '\0';
+                // Get the value of the environment variable and replace it in the arguments
                 char *g = getenv(temp);
                 strcpy(temp, g);
                 l = 1;
@@ -115,6 +124,7 @@ void parse_input()
             }
         }
     }
+    // Execute built-in commands (cd, echo, export)
     if (strcmp(arr[0], "echo") == 0 || strcmp(arr[0], "cd") == 0 || strcmp(arr[0], "export") == 0)
         execute_shell_builtin(arr[0]);
     // exit command
@@ -131,6 +141,7 @@ void parse_input()
         execute_command();
 }
 
+// Main shell loop
 void shell()
 {
     do
@@ -140,6 +151,7 @@ void shell()
     } while (true);
 }
 
+// Execute built-in commands (cd, echo, export)
 void execute_shell_builtin(char string[])
 {
     switch (string[1])
@@ -211,8 +223,10 @@ void execute_shell_builtin(char string[])
     }
 }
 
+// Executes external commands using fork and exec
 void execute_command()
 {
+    //fork a new process
     pid_t pid = fork(); // child id
     id = pid;
     if (pid < 0) // Error
@@ -220,8 +234,9 @@ void execute_command()
         perror("Fork failed");
         exit(EXIT_FAILURE);
     }
-    else if (pid == 0) // In the child
+    else if (pid == 0) // In the child process
     {
+        // Execute the command using execvp
         if (execvp(arr[0], arr) == -1)
         {
             perror("Command not found!");
@@ -230,13 +245,14 @@ void execute_command()
         else
             execvp(arr[0], arr);
     }
-    else // In the parent
+    else // In the parent process
     {
         if (flag == 0)
             on_child_exit(pid);
     }
 }
 
+//handles child process termination and writes to log file
 void on_child_exit(pid_t pid)
 {
     int status;
@@ -244,6 +260,7 @@ void on_child_exit(pid_t pid)
     write_to_log_file(pid);
 }
 
+//handles signal exit
 void on_signal_exit()
 {
     int var;
@@ -253,6 +270,7 @@ void on_signal_exit()
         write_to_log_file(id);
 }
 
+// Writes information about terminated child processes to a log file
 void write_to_log_file(pid_t pid)
 {
     file = fopen("/home/ranime/Desktop/Term6/OS/Labs/Lab1/logs.txt", "a");
@@ -260,6 +278,7 @@ void write_to_log_file(pid_t pid)
     fclose(file);
 }
 
+// Removes quotes from a string
 void remove_quotes(char *str)
 {
     char *dest = str;
